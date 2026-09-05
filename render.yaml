@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: pixelnovel-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: FRONTEND_URL
+        sync: false   # set manually once the static site URL is known (avoids a circular reference)
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+  - type: web
+    name: pixelnovel-frontend
+    runtime: static
+    plan: free
+    rootDir: frontend
+    buildCommand: "npm install && npm run build"
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false   # set manually to https://pixelnovel-backend.onrender.com/api after the backend deploys
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

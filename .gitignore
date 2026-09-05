@@ -1,0 +1,10 @@
+node_modules/
+dist/
+__pycache__/
+*.pyc
+data/input/*
+data/processed/*
+data/output/*
+!data/input/.gitkeep
+!data/processed/.gitkeep
+!data/output/.gitkeep
