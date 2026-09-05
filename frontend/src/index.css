@@ -28,11 +28,14 @@ body {
   background: #0f151d;
 }
 
-.app-header h1 {
+.app-header h1,
+.app-header-brand {
   margin: 0;
   font-size: 20px;
   letter-spacing: 0.02em;
   color: #6ee7c2;
+  text-decoration: none;
+  font-weight: 600;
 }
 
 .tagline {
