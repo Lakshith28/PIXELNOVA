@@ -1,5 +1,5 @@
 """
-PIXELNOVEL Backend - FastAPI entrypoint
+PIXELNOVA Backend - FastAPI entrypoint
 
 Run locally with:
     cd backend
@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.routes import router as scenes_router
 
 app = FastAPI(
-    title="PIXELNOVEL API",
+    title="PIXELNOVA API",
     description="AI-Based Uncertainty-Aware Super-Resolution of Sentinel-2 Imagery",
     version="0.1.0-phase1",
 )

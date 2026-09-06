@@ -1,5 +1,5 @@
 """
-PIXELNOVEL - API Routes (Phase 1: upload, validate, preview)
+PIXELNOVA - API Routes (Phase 1: upload, validate, preview)
 """
 from __future__ import annotations
 
@@ -11,7 +11,11 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from geospatial.preview import generate_preview_png
+from geospatial.render import render_confidence_png, render_true_color_png, write_enhanced_geotiff
 from geospatial.validation import validate_geotiff
+from preprocessing.normalize import load_normalized_bands
+from super_resolution.baseline import METHOD_LABEL, enhance
+from uncertainty.heuristic import compute_confidence
 
 router = APIRouter()
 
@@ -98,6 +102,103 @@ async def get_scene_preview(scene_id: str):
         scene["preview_generated"] = True
 
     return FileResponse(preview_path, media_type="image/png")
+
+
+@router.post("/scenes/{scene_id}/run")
+async def run_ai_pipeline(scene_id: str):
+    """
+    MVP-4/6/7: runs the current pipeline (classical baseline upsampling +
+    heuristic confidence), exports a real georeferenced enhanced GeoTIFF,
+    and renders PNGs for the frontend before/after and confidence views.
+
+    HONEST LABELING: this is deliberately NOT called "AI super-resolution"
+    anywhere in the response. See super_resolution/baseline.py and
+    uncertainty/heuristic.py for why.
+    """
+    scene = SCENES.get(scene_id)
+    if not scene:
+        raise HTTPException(status_code=404, detail="Scene not found.")
+    if not scene["validation"]["valid"]:
+        raise HTTPException(status_code=400, detail="Scene failed validation; cannot process.")
+
+    scale_factor = 4
+    loaded = load_normalized_bands(scene["file_path"])
+    bands = loaded["bands"]
+
+    enhanced = enhance(bands, scale_factor=scale_factor)
+    confidence_result = compute_confidence(
+        bands, enhanced.shape[1:], loaded.get("nodata_mask")
+    )
+
+    enhanced_png_path = PROCESSED_DIR / f"{scene_id}_enhanced.png"
+    confidence_png_path = PROCESSED_DIR / f"{scene_id}_confidence.png"
+    enhanced_tif_path = PROCESSED_DIR / f"{scene_id}_enhanced.tif"
+
+    render_true_color_png(enhanced, str(enhanced_png_path))
+    render_confidence_png(confidence_result["confidence_map"], str(confidence_png_path))
+    write_enhanced_geotiff(
+        enhanced, loaded["transform"], loaded["crs"], str(enhanced_tif_path), scale_factor
+    )
+
+    run_result = {
+        "method_label": METHOD_LABEL,
+        "confidence_method": confidence_result["method"],
+        "mean_confidence": round(confidence_result["mean_confidence"], 3),
+        "high_confidence_pct": confidence_result["high_confidence_pct"],
+        "medium_confidence_pct": confidence_result["medium_confidence_pct"],
+        "low_confidence_pct": confidence_result["low_confidence_pct"],
+        "input_width": bands.shape[2],
+        "input_height": bands.shape[1],
+        "output_width": enhanced.shape[2],
+        "output_height": enhanced.shape[1],
+        "scale_factor": scale_factor,
+        "input_resolution_m": round(loaded["pixel_resolution_m"], 2),
+        "output_resolution_m": round(loaded["pixel_resolution_m"] / scale_factor, 2),
+        "disclaimer": (
+            "This uses classical Lanczos upsampling as a placeholder, not a "
+            "trained AI super-resolution model. Confidence is a heuristic "
+            "proxy based on local variance in the original image, not "
+            "calibrated model uncertainty. Both will be replaced with real "
+            "trained components in a later phase."
+        ),
+    }
+    scene["run_result"] = run_result
+    return run_result
+
+
+@router.get("/scenes/{scene_id}/enhanced-preview")
+async def get_enhanced_preview(scene_id: str):
+    scene = SCENES.get(scene_id)
+    if not scene or "run_result" not in scene:
+        raise HTTPException(status_code=404, detail="Run the AI pipeline first.")
+    path = PROCESSED_DIR / f"{scene_id}_enhanced.png"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Enhanced preview not found.")
+    return FileResponse(path, media_type="image/png")
+
+
+@router.get("/scenes/{scene_id}/confidence-preview")
+async def get_confidence_preview(scene_id: str):
+    scene = SCENES.get(scene_id)
+    if not scene or "run_result" not in scene:
+        raise HTTPException(status_code=404, detail="Run the AI pipeline first.")
+    path = PROCESSED_DIR / f"{scene_id}_confidence.png"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Confidence preview not found.")
+    return FileResponse(path, media_type="image/png")
+
+
+@router.get("/scenes/{scene_id}/enhanced-geotiff")
+async def get_enhanced_geotiff(scene_id: str):
+    scene = SCENES.get(scene_id)
+    if not scene or "run_result" not in scene:
+        raise HTTPException(status_code=404, detail="Run the AI pipeline first.")
+    path = PROCESSED_DIR / f"{scene_id}_enhanced.tif"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Enhanced GeoTIFF not found.")
+    return FileResponse(
+        path, media_type="image/tiff", filename=f"pixelnova_enhanced_{scene_id[:8]}.tif"
+    )
 
 
 @router.get("/scenes")

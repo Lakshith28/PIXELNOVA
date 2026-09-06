@@ -1,5 +1,5 @@
 """
-PIXELNOVEL - Raster Validation
+PIXELNOVA - Raster Validation
 Validates that an uploaded file is a usable, georeferenced Sentinel-2-style GeoTIFF.
 
 This is MVP-2: raster validation + metadata display.

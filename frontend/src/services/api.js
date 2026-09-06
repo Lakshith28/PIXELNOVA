@@ -1,5 +1,5 @@
 // In production (Render static site build), set VITE_API_URL to the deployed
-// backend's URL, e.g. https://pixelnova-backend.onrender.com/api
+// backend's URL, e.g. https://pixelnovel-backend.onrender.com/api
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 
 export async function uploadScene(file) {
@@ -21,4 +21,27 @@ export async function uploadScene(file) {
 
 export function scenePreviewUrl(sceneId) {
   return `${API_BASE}/scenes/${sceneId}/preview`
+}
+
+export async function runAiPipeline(sceneId) {
+  const res = await fetch(`${API_BASE}/scenes/${sceneId}/run`, { method: 'POST' })
+
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}))
+    throw new Error(detail.detail || `Processing failed with status ${res.status}`)
+  }
+
+  return res.json()
+}
+
+export function enhancedPreviewUrl(sceneId) {
+  return `${API_BASE}/scenes/${sceneId}/enhanced-preview`
+}
+
+export function confidencePreviewUrl(sceneId) {
+  return `${API_BASE}/scenes/${sceneId}/confidence-preview`
+}
+
+export function enhancedGeotiffUrl(sceneId) {
+  return `${API_BASE}/scenes/${sceneId}/enhanced-geotiff`
 }

@@ -4,15 +4,22 @@ import UploadPanel from '../components/UploadPanel'
 import MetadataPanel from '../components/MetadataPanel'
 import ScenePreviewMap from '../components/ScenePreviewMap'
 import PipelineTracker from '../components/PipelineTracker'
+import { enhancedGeotiffUrl } from '../services/api'
 
 export default function Dashboard() {
   const [scene, setScene] = useState(null)
-  const [runMessage, setRunMessage] = useState(null)
+  const [runResult, setRunResult] = useState(null)
+  const [activeLayer, setActiveLayer] = useState('original')
 
-  function handleRunClicked() {
-    setRunMessage(
-      'The AI reconstruction pipeline (stages 02–06) isn\u2019t built yet \u2014 this is a UI preview of the intended workflow. Stage 01 above is fully real.'
-    )
+  function handleUploaded(uploadedScene) {
+    setScene(uploadedScene)
+    setRunResult(null)
+    setActiveLayer('original')
+  }
+
+  function handleRunResult(result) {
+    setRunResult(result)
+    setActiveLayer('enhanced')
   }
 
   return (
@@ -26,13 +33,45 @@ export default function Dashboard() {
 
       <div className="app-body">
         <aside className="sidebar">
-          <UploadPanel onUploaded={(s) => { setScene(s); setRunMessage(null) }} />
+          <UploadPanel onUploaded={handleUploaded} />
           <MetadataPanel scene={scene} />
-          <PipelineTracker scene={scene} onRunClicked={handleRunClicked} runMessage={runMessage} />
+          <PipelineTracker scene={scene} runResult={runResult} onRunResult={handleRunResult} />
+
+          {runResult && (
+            <a
+              className="export-button"
+              href={enhancedGeotiffUrl(scene.scene_id)}
+              download
+            >
+              Export enhanced GeoTIFF
+            </a>
+          )}
         </aside>
 
         <main className="map-area">
-          <ScenePreviewMap scene={scene} />
+          {runResult && (
+            <div className="layer-toggle">
+              <button
+                className={activeLayer === 'original' ? 'active' : ''}
+                onClick={() => setActiveLayer('original')}
+              >
+                Original
+              </button>
+              <button
+                className={activeLayer === 'enhanced' ? 'active' : ''}
+                onClick={() => setActiveLayer('enhanced')}
+              >
+                Enhanced
+              </button>
+              <button
+                className={activeLayer === 'confidence' ? 'active' : ''}
+                onClick={() => setActiveLayer('confidence')}
+              >
+                Confidence
+              </button>
+            </div>
+          )}
+          <ScenePreviewMap scene={scene} activeLayer={activeLayer} />
         </main>
       </div>
     </div>
