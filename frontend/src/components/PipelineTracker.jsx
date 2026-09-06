@@ -78,7 +78,7 @@ export default function PipelineTracker({ scene, onRunClicked, runMessage }) {
         onClick={onRunClicked}
         title={canRun ? undefined : 'Upload a valid scene first'}
       >
-        Run PIXELNOVEL AI
+        Run PIXELNOVA AI
       </button>
       {runMessage && <p className="run-message">{runMessage}</p>}
     </div>

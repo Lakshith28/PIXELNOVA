@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import SatelliteHero from '../components/SatelliteHero'
+import SplashScreen from '../components/SplashScreen'
 import './landing.css'
 
 const PIPELINE = [
@@ -26,8 +28,16 @@ const PIPELINE = [
 ]
 
 export default function Landing() {
+  const [showSplash, setShowSplash] = useState(true)
+
   return (
     <div className="landing">
+      {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
+
+      <nav className="landing-nav">
+        <img src="/pixelnova-logo.png" alt="PIXELNOVA" className="nav-logo" />
+      </nav>
+
       <section className="hero">
         <div className="hero-copy">
           <p className="hero-kicker">Sentinel-2, reconstructed</p>
@@ -37,9 +47,10 @@ export default function Landing() {
             satellite pixel
           </h1>
           <p className="hero-subhead">
-            PIXELNOVEL takes 10 metre Sentinel-2 imagery and reconstructs
-            sub-4 metre spatial detail using AI — then tells you exactly
-            where that detail can be trusted.
+            From satellite data to a brighter tomorrow — PIXELNOVA
+            reconstructs sub-4 metre spatial detail from 10 metre
+            Sentinel-2 imagery using AI, then tells you exactly where that
+            detail can be trusted.
           </p>
           <Link to="/app" className="cta-button">
             Launch the platform

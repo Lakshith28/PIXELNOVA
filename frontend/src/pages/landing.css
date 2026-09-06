@@ -22,6 +22,66 @@
   margin: 0;
 }
 
+/* ---------- Splash screen ---------- */
+
+.splash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity 0.8s ease;
+}
+
+.splash-fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.splash-logo {
+  width: min(480px, 70vw);
+  height: auto;
+  animation: splash-in 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes splash-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ---------- Nav ---------- */
+
+.landing-nav {
+  position: absolute;
+  top: 28px;
+  left: 32px;
+  z-index: 3;
+}
+
+.nav-logo {
+  height: 28px;
+  width: auto;
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-screen {
+    transition: none;
+  }
+  .splash-logo {
+    animation: none;
+  }
+}
+
 /* ---------- Hero ---------- */
 
 .hero {
@@ -84,47 +144,136 @@
 }
 
 .hero-illustration {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: min(1100px, 150vw);
-  transform: translateX(-50%);
-  z-index: 1;
+  display: none;
 }
 
-/* the one orchestrated page-load moment: satellite rises into place */
-.satellite-rig {
-  animation: rise-in 1.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: 0.2s;
+.hero-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.sun-flare {
+  position: absolute;
+  top: 6%;
+  left: 4%;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff6e0 0%, #f2a65a 22%, rgba(242, 166, 90, 0.15) 55%, transparent 75%);
+  filter: blur(2px);
+  opacity: 0.85;
+}
+
+.earth-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: -22%;
+  width: min(760px, 92vw);
+  height: min(760px, 92vw);
+  transform: translateX(-50%);
+}
+
+.earth-atmosphere {
+  position: absolute;
+  inset: -3%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, rgba(139, 190, 235, 0.55), rgba(60, 110, 180, 0.15) 55%, transparent 72%);
+  filter: blur(6px);
+}
+
+.earth-globe {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow:
+    inset 24px -20px 80px rgba(0, 0, 0, 0.65),
+    inset -10px 10px 40px rgba(160, 210, 255, 0.25),
+    0 0 90px rgba(90, 150, 220, 0.25);
+  background: radial-gradient(circle at 38% 32%, #2a5f8a 0%, #1c4568 30%, #0e2a48 60%, #071729 100%);
+}
+
+.earth-continents {
+  position: absolute;
+  inset: -8%;
+  background:
+    radial-gradient(ellipse 120px 80px at 30% 35%, rgba(90, 140, 80, 0.85), transparent 70%),
+    radial-gradient(ellipse 160px 100px at 55% 60%, rgba(100, 150, 85, 0.75), transparent 70%),
+    radial-gradient(ellipse 90px 130px at 68% 30%, rgba(95, 145, 82, 0.7), transparent 70%),
+    radial-gradient(ellipse 70px 90px at 22% 65%, rgba(110, 155, 90, 0.6), transparent 70%);
+  mix-blend-mode: soft-light;
+  animation: spin-slow 140s linear infinite;
+}
+
+.earth-clouds {
+  position: absolute;
+  inset: -8%;
+  background:
+    radial-gradient(ellipse 100px 40px at 40% 25%, rgba(255, 255, 255, 0.5), transparent 70%),
+    radial-gradient(ellipse 140px 50px at 65% 55%, rgba(255, 255, 255, 0.35), transparent 70%),
+    radial-gradient(ellipse 90px 35px at 25% 70%, rgba(255, 255, 255, 0.4), transparent 70%),
+    radial-gradient(ellipse 120px 45px at 80% 35%, rgba(255, 255, 255, 0.3), transparent 70%);
+  filter: blur(3px);
+  animation: spin-slow 95s linear infinite reverse;
+}
+
+.earth-citylights {
+  position: absolute;
+  inset: -8%;
+  background:
+    radial-gradient(1.5px 1.5px at 78% 40%, #ffe9b0, transparent),
+    radial-gradient(1.5px 1.5px at 82% 48%, #ffe9b0, transparent),
+    radial-gradient(1px 1px at 75% 55%, #ffe9b0, transparent),
+    radial-gradient(1.5px 1.5px at 85% 60%, #ffe9b0, transparent),
+    radial-gradient(1px 1px at 80% 33%, #ffe9b0, transparent);
+  opacity: 0.9;
+  animation: spin-slow 140s linear infinite;
+}
+
+.earth-terminator {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 45%, rgba(2, 6, 14, 0.55) 62%, rgba(2, 6, 14, 0.88) 78%);
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes clouds-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(-6%); }
+}
+
+.orbit-svg,
+.stars-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.satellite-orbit-rig {
+  offset-path: path("M 450 120 A 330 220 -18 1 1 449 120");
+  offset-rotate: 0deg;
+  animation: fly-orbit 14s linear infinite;
   transform-origin: center;
 }
 
-.orbit-path {
-  animation: fade-in 1.8s ease both;
-  animation-delay: 0.4s;
-}
-
-@keyframes rise-in {
-  from {
-    transform: translateY(140px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 0.5; }
+@keyframes fly-orbit {
+  from { offset-distance: 0%; }
+  to { offset-distance: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .satellite-rig,
-  .orbit-path {
+  .earth-globe,
+  .earth-clouds,
+  .satellite-orbit-rig {
     animation: none;
-    opacity: 1;
   }
 }
 

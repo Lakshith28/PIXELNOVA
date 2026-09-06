@@ -18,8 +18,10 @@ export default function Dashboard() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <Link to="/" className="app-header-brand">PIXELNOVEL</Link>
-        <p className="tagline">From Pixels to Decisions — Phase 1 Skeleton</p>
+        <Link to="/" className="app-header-brand">
+          <img src="/pixelnova-logo.png" alt="PIXELNOVA" className="header-logo" />
+        </Link>
+        <p className="tagline">From satellite data to a brighter tomorrow</p>
       </header>
 
       <div className="app-body">

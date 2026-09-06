@@ -1,95 +1,64 @@
 export default function SatelliteHero() {
   return (
-    <svg
-      className="hero-illustration"
-      viewBox="0 0 900 560"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <defs>
-        <radialGradient id="atmosphere" cx="50%" cy="100%" r="75%">
-          <stop offset="0%" stopColor="#f2a65a" stopOpacity="0.55" />
-          <stop offset="35%" stopColor="#c97b3f" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="#0b1830" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id="earthLimb" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#f2a65a" />
-          <stop offset="18%" stopColor="#7a5a63" />
-          <stop offset="55%" stopColor="#1c2a4a" />
-          <stop offset="100%" stopColor="#0b1128" />
-        </linearGradient>
-        <linearGradient id="panelGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#1a2b52" />
-          <stop offset="100%" stopColor="#0d1730" />
-        </linearGradient>
-      </defs>
+    <div className="hero-scene" aria-hidden="true">
+      <div className="sun-flare" />
 
-      {/* atmosphere glow */}
-      <ellipse cx="450" cy="620" rx="520" ry="260" fill="url(#atmosphere)" />
+      <div className="earth-wrap">
+        <div className="earth-atmosphere" />
+        <div className="earth-globe">
+          <div className="earth-continents" />
+          <div className="earth-clouds" />
+          <div className="earth-citylights" />
+          <div className="earth-terminator" />
+        </div>
+      </div>
 
-      {/* earth limb arc */}
-      <path
-        d="M -50 560 C 150 380, 750 380, 950 560 L 950 620 L -50 620 Z"
-        fill="url(#earthLimb)"
-      />
-      <path
-        d="M -50 560 C 150 380, 750 380, 950 560"
-        fill="none"
-        stroke="#f2a65a"
-        strokeWidth="2"
-        strokeOpacity="0.6"
-      />
+      <svg className="orbit-svg" viewBox="0 0 900 900" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M 450 120 A 330 220 -18 1 1 449 120"
+          fill="none"
+          stroke="#7fb8d9"
+          strokeWidth="1"
+          strokeDasharray="3 7"
+          opacity="0.35"
+        />
 
-      {/* orbit path */}
-      <path
-        className="orbit-path"
-        d="M 120 300 C 260 150, 640 150, 780 300"
-        fill="none"
-        stroke="#4c6a94"
-        strokeWidth="1.5"
-        strokeDasharray="4 8"
-        opacity="0.5"
-      />
-
-      {/* satellite rig: this group is what animates upward on load */}
-      <g className="satellite-rig">
-        <g transform="translate(450 235) rotate(-8)">
-          {/* left solar panel */}
-          <g transform="translate(-150 -14)">
-            <rect x="0" y="0" width="110" height="60" rx="3" fill="url(#panelGradient)" stroke="#3a5583" strokeWidth="1.5" />
-            {[1, 2, 3, 4].map((i) => (
-              <line key={i} x1={i * 22} y1="0" x2={i * 22} y2="60" stroke="#3a5583" strokeWidth="1" />
-            ))}
-            <line x1="0" y1="30" x2="110" y2="30" stroke="#3a5583" strokeWidth="1" />
+        <g className="satellite-orbit-rig">
+          <g transform="translate(-46 -14) rotate(-20)">
+            <g transform="translate(-70 0)">
+              <rect x="0" y="0" width="62" height="34" rx="2" fill="#16326b" stroke="#3a5583" strokeWidth="1.2" />
+              <line x1="14" y1="0" x2="14" y2="34" stroke="#3a5583" strokeWidth="0.8" />
+              <line x1="28" y1="0" x2="28" y2="34" stroke="#3a5583" strokeWidth="0.8" />
+              <line x1="42" y1="0" x2="42" y2="34" stroke="#3a5583" strokeWidth="0.8" />
+              <line x1="0" y1="17" x2="62" y2="17" stroke="#3a5583" strokeWidth="0.8" />
+            </g>
+            <g transform="translate(24 0)">
+              <rect x="0" y="0" width="62" height="34" rx="2" fill="#16326b" stroke="#3a5583" strokeWidth="1.2" />
+              <line x1="14" y1="0" x2="14" y2="34" stroke="#3a5583" strokeWidth="0.8" />
+              <line x1="28" y1="0" x2="28" y2="34" stroke="#3a5583" strokeWidth="0.8" />
+              <line x1="42" y1="0" x2="42" y2="34" stroke="#3a5583" strokeWidth="0.8" />
+              <line x1="0" y1="17" x2="62" y2="17" stroke="#3a5583" strokeWidth="0.8" />
+            </g>
+            <line x1="-24" y1="9" x2="0" y2="9" stroke="#c9a24b" strokeWidth="2.5" />
+            <line x1="24" y1="9" x2="48" y2="9" stroke="#c9a24b" strokeWidth="2.5" />
+            <rect x="-24" y="-13" width="48" height="44" rx="5" fill="#caa24d" stroke="#8a6d2e" strokeWidth="1.5" />
+            <rect x="-14" y="-4" width="28" height="18" rx="2" fill="#e9c877" stroke="#8a6d2e" strokeWidth="0.8" />
+            <line x1="0" y1="-13" x2="0" y2="-30" stroke="#c9a24b" strokeWidth="1.5" />
+            <circle cx="0" cy="-30" r="3" fill="#f2a65a" />
           </g>
-          {/* right solar panel */}
-          <g transform="translate(40 -14)">
-            <rect x="0" y="0" width="110" height="60" rx="3" fill="url(#panelGradient)" stroke="#3a5583" strokeWidth="1.5" />
-            {[1, 2, 3, 4].map((i) => (
-              <line key={i} x1={i * 22} y1="0" x2={i * 22} y2="60" stroke="#3a5583" strokeWidth="1" />
-            ))}
-            <line x1="0" y1="30" x2="110" y2="30" stroke="#3a5583" strokeWidth="1" />
-          </g>
-          {/* connecting struts */}
-          <line x1="-40" y1="16" x2="0" y2="16" stroke="#5b7bab" strokeWidth="3" />
-          <line x1="40" y1="16" x2="80" y2="16" stroke="#5b7bab" strokeWidth="3" />
-          {/* body */}
-          <rect x="-40" y="-22" width="80" height="76" rx="8" fill="#0d1730" stroke="#5b7bab" strokeWidth="2" />
-          <rect x="-24" y="-10" width="48" height="30" rx="4" fill="#132248" stroke="#3a5583" strokeWidth="1" />
-          {/* antenna */}
-          <line x1="0" y1="-22" x2="0" y2="-52" stroke="#5b7bab" strokeWidth="2" />
-          <circle cx="0" cy="-52" r="5" fill="#f2a65a" />
         </g>
-      </g>
+      </svg>
 
-      {/* stars */}
-      {[
-        [60, 80], [140, 40], [230, 110], [320, 30], [400, 90],
-        [520, 50], [610, 100], [700, 40], [800, 90], [850, 150],
-        [30, 200], [180, 180], [860, 250], [780, 200], [500, 20],
-      ].map(([x, y], i) => (
-        <circle key={i} cx={x} cy={y} r={i % 3 === 0 ? 1.6 : 1} fill="#cfe0f5" opacity={i % 2 === 0 ? 0.8 : 0.4} />
-      ))}
-    </svg>
+      <svg className="stars-svg" viewBox="0 0 900 900" xmlns="http://www.w3.org/2000/svg">
+        {[
+          [60, 80], [140, 40], [230, 700], [320, 30], [780, 90],
+          [520, 50], [610, 780], [700, 40], [800, 690], [850, 150],
+          [30, 400], [180, 780], [860, 250], [40, 650], [500, 20],
+          [760, 500], [90, 250], [650, 60], [400, 800], [830, 400],
+        ].map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r={i % 3 === 0 ? 1.6 : 1} fill="#cfe0f5" opacity={i % 2 === 0 ? 0.8 : 0.4} />
+        ))}
+      </svg>
+    </div>
   )
 }

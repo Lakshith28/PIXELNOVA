@@ -50,6 +50,14 @@ body {
   color: var(--horizon-amber);
   text-decoration: none;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.header-logo {
+  height: 22px;
+  width: auto;
+  display: block;
 }
 
 .tagline {

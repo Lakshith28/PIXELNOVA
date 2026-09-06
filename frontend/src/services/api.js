@@ -1,5 +1,5 @@
 // In production (Render static site build), set VITE_API_URL to the deployed
-// backend's URL, e.g. https://pixelnovel-backend.onrender.com/api
+// backend's URL, e.g. https://pixelnova-backend.onrender.com/api
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 
 export async function uploadScene(file) {
