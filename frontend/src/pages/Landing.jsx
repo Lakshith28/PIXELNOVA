@@ -40,7 +40,7 @@ export default function Landing() {
 
       <section className="hero">
         <div className="hero-copy">
-          <p className="hero-kicker">Sentinel-2, reconstructed</p>
+
           <h1>
             See more in every
             <br />
