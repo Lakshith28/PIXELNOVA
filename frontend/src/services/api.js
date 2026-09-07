@@ -19,8 +19,9 @@ export async function uploadScene(file) {
   return res.json()
 }
 
-export function scenePreviewUrl(sceneId) {
-  return `${API_BASE}/scenes/${sceneId}/preview`
+export function scenePreviewUrl(sceneId, version) {
+  const base = `${API_BASE}/scenes/${sceneId}/preview`
+  return version ? `${base}?v=${version}` : base
 }
 
 export async function runAiPipeline(sceneId) {

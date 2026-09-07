@@ -106,7 +106,11 @@ async def get_scene_preview(scene_id: str):
         generate_preview_png(scene["file_path"], str(preview_path))
         scene["preview_generated"] = True
 
-    return FileResponse(preview_path, media_type="image/png")
+    return FileResponse(
+        preview_path,
+        media_type="image/png",
+        headers={"Cache-Control": "no-store, must-revalidate"},
+    )
 
 
 @router.post("/scenes/{scene_id}/run")
@@ -191,7 +195,9 @@ async def get_enhanced_preview(scene_id: str):
     path = PROCESSED_DIR / f"{scene_id}_enhanced.png"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Enhanced preview not found.")
-    return FileResponse(path, media_type="image/png")
+    return FileResponse(
+        path, media_type="image/png", headers={"Cache-Control": "no-store, must-revalidate"}
+    )
 
 
 @router.get("/scenes/{scene_id}/confidence-preview")
@@ -202,7 +208,9 @@ async def get_confidence_preview(scene_id: str):
     path = PROCESSED_DIR / f"{scene_id}_confidence.png"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Confidence preview not found.")
-    return FileResponse(path, media_type="image/png")
+    return FileResponse(
+        path, media_type="image/png", headers={"Cache-Control": "no-store, must-revalidate"}
+    )
 
 
 @router.get("/scenes/{scene_id}/enhanced-geotiff")
