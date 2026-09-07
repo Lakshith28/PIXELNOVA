@@ -11,7 +11,12 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from geospatial.preview import generate_preview_png
-from geospatial.render import render_confidence_png, render_true_color_png, write_enhanced_geotiff
+from geospatial.render import (
+    compute_stretch_bounds,
+    render_confidence_png,
+    render_true_color_png,
+    write_enhanced_geotiff,
+)
 from geospatial.validation import validate_geotiff
 from preprocessing.normalize import load_normalized_bands
 from super_resolution.baseline import METHOD_LABEL, enhance
@@ -130,11 +135,23 @@ async def run_ai_pipeline(scene_id: str):
         bands, enhanced.shape[1:], loaded.get("nodata_mask")
     )
 
+    # Compute color stretch bounds ONCE from the original scene, then
+    # reuse them for both the original and enhanced renders. This
+    # guarantees the "Original" and "Enhanced" tabs share identical
+    # color calibration — any visible difference is purely
+    # resolution/sharpness, not an independently-computed contrast shift.
+    stretch_bounds = compute_stretch_bounds(bands)
+
+    original_png_path = PROCESSED_DIR / f"{scene_id}_preview.png"
     enhanced_png_path = PROCESSED_DIR / f"{scene_id}_enhanced.png"
     confidence_png_path = PROCESSED_DIR / f"{scene_id}_confidence.png"
     enhanced_tif_path = PROCESSED_DIR / f"{scene_id}_enhanced.tif"
 
-    render_true_color_png(enhanced, str(enhanced_png_path))
+    # Re-render the "Original" tab's preview using the same bounds, so
+    # it matches the enhanced tab's calibration exactly (this replaces
+    # the upload-time preview, which used its own independent stretch).
+    render_true_color_png(bands, str(original_png_path), stretch_bounds=stretch_bounds)
+    render_true_color_png(enhanced, str(enhanced_png_path), stretch_bounds=stretch_bounds)
     render_confidence_png(confidence_result["confidence_map"], str(confidence_png_path))
     write_enhanced_geotiff(
         enhanced, loaded["transform"], loaded["crs"], str(enhanced_tif_path), scale_factor

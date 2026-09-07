@@ -38,9 +38,19 @@ def enhance(bands: np.ndarray, scale_factor: int = 4) -> np.ndarray:
     out = np.zeros((n_bands, out_h, out_w), dtype=np.float32)
 
     for i in range(n_bands):
-        band_u8 = np.clip(bands[i] * 255.0, 0, 255).astype(np.uint8)
-        img = Image.fromarray(band_u8, mode="L")
+        # Resample directly in float32 ("F" mode), NOT via an 8-bit uint8
+        # cast first. Reflectance values typically only span a narrow
+        # slice of 0-1 (e.g. 0.02-0.3 for land), so quantizing to 256
+        # levels before resampling threw away almost all real tonal
+        # detail and let Lanczos's negative lobes ring on the resulting
+        # blocky data — that was the source of the dark/orange blotch
+        # artifacts, not genuine enhancement.
+        img = Image.fromarray(bands[i], mode="F")
         resized = img.resize((out_w, out_h), resample=Image.LANCZOS)
-        out[i] = np.asarray(resized, dtype=np.float32) / 255.0
+        resized_arr = np.asarray(resized, dtype=np.float32)
+        # Lanczos has negative lobes even on clean float data (mild
+        # ringing at sharp edges is mathematically expected) — clip at
+        # the very end, once, rather than truncating precision early.
+        out[i] = np.clip(resized_arr, 0.0, 1.0)
 
     return out
