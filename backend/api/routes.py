@@ -16,7 +16,7 @@ from geospatial.preview import generate_preview_png
 from geospatial.render import render_confidence_png, render_true_color_png, write_enhanced_geotiff
 from geospatial.validation import validate_geotiff
 from preprocessing.normalize import load_normalized_bands
-from super_resolution import trained_model
+from super_resolution import pretrained_esrgan
 from super_resolution.baseline import METHOD_LABEL as CLASSICAL_METHOD_LABEL
 from super_resolution.baseline import enhance as classical_enhance
 from uncertainty.heuristic import compute_confidence
@@ -105,20 +105,24 @@ async def get_scene_preview(scene_id: str):
         generate_preview_png(scene["file_path"], str(preview_path))
         scene["preview_generated"] = True
 
-    return FileResponse(preview_path, media_type="image/png")
+    return FileResponse(
+        preview_path,
+        media_type="image/png",
+        headers={"Cache-Control": "no-store, must-revalidate"},
+    )
 
 
 @router.post("/scenes/{scene_id}/run")
 async def run_ai_pipeline(scene_id: str):
     """
-    Runs the AI pipeline: preprocessing, super-resolution (trained CNN,
-    falling back to classical upsampling if the model is unavailable),
+    Runs the AI pipeline: preprocessing, super-resolution (pretrained
+    ESRGAN model, falling back to classical upsampling if unavailable),
     heuristic confidence, and exports a real georeferenced enhanced
     GeoTIFF plus PNGs for the frontend.
 
     HONEST LABELING: method_label and the disclaimer field always
-    reflect what actually ran. See super_resolution/trained_model.py and
-    uncertainty/heuristic.py for the honesty notes on each.
+    reflect what actually ran. See super_resolution/pretrained_esrgan.py
+    and uncertainty/heuristic.py for the honesty notes on each.
     """
     scene = SCENES.get(scene_id)
     if not scene:
@@ -152,22 +156,25 @@ async def run_ai_pipeline(scene_id: str):
     original_rgb_stack = np.stack([bands[2], bands[1], bands[0]], axis=0) if bands.shape[0] >= 3 else None
     shared_stretch_bounds = compute_stretch_bounds(original_rgb_stack) if original_rgb_stack is not None else None
 
-    # Try the trained model first; fall back to classical upsampling if the
-    # model can't be loaded or fails for any reason. Either way, the API
-    # response's method_label and disclaimer reflect what ACTUALLY ran.
+    # Try the pretrained AI model first; fall back to classical upsampling if
+    # it can't load or fails for any reason (untested dependency on this
+    # server - see pretrained_esrgan.py's module docstring). Either way, the
+    # API response's method_label and disclaimer reflect what ACTUALLY ran.
     try:
-        enhanced = trained_model.enhance_trained(bands, scale_factor=scale_factor)
-        method_label = trained_model.METHOD_LABEL
-        method_disclaimer = trained_model.METHOD_DISCLAIMER
+        enhanced = pretrained_esrgan.enhance_trained_from_file(
+            scene["file_path"], scale_factor=scale_factor
+        )
+        method_label = pretrained_esrgan.METHOD_LABEL
+        method_disclaimer = pretrained_esrgan.METHOD_DISCLAIMER
     except Exception as exc:  # noqa: BLE001 - deliberate fallback path
         print(f"[run_ai_pipeline] Trained model failed ({exc}); using classical baseline.")
         enhanced = classical_enhance(bands, scale_factor=scale_factor)
         method_label = CLASSICAL_METHOD_LABEL
         method_disclaimer = (
-            "The trained model was unavailable, so this used classical "
-            "Lanczos upsampling instead - not a trained AI super-resolution "
-            "model. Confidence is a heuristic proxy based on local variance "
-            "in the original image, not calibrated model uncertainty."
+            "The AI model was unavailable, so this used classical Lanczos "
+            "upsampling instead - not a trained AI super-resolution model. "
+            "Confidence is a heuristic proxy based on local variance in the "
+            "original image, not calibrated model uncertainty."
         )
 
     confidence_result = compute_confidence(
@@ -212,7 +219,9 @@ async def get_enhanced_preview(scene_id: str):
     path = PROCESSED_DIR / f"{scene_id}_enhanced.png"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Enhanced preview not found.")
-    return FileResponse(path, media_type="image/png")
+    return FileResponse(
+        path, media_type="image/png", headers={"Cache-Control": "no-store, must-revalidate"}
+    )
 
 
 @router.get("/scenes/{scene_id}/confidence-preview")
@@ -223,7 +232,9 @@ async def get_confidence_preview(scene_id: str):
     path = PROCESSED_DIR / f"{scene_id}_confidence.png"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Confidence preview not found.")
-    return FileResponse(path, media_type="image/png")
+    return FileResponse(
+        path, media_type="image/png", headers={"Cache-Control": "no-store, must-revalidate"}
+    )
 
 
 @router.get("/scenes/{scene_id}/enhanced-geotiff")

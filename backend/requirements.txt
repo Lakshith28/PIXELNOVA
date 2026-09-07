@@ -8,3 +8,4 @@ shapely==2.0.4
 pydantic==2.9.2
 Pillow==10.4.0
 onnxruntime==1.19.2
+sentinel2sr @ git+https://github.com/openearthplatforminitiative/sentinel2-super-resolution.git

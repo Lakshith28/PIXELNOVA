@@ -71,7 +71,7 @@ export default function Dashboard() {
               </button>
             </div>
           )}
-          <ScenePreviewMap scene={scene} activeLayer={activeLayer} />
+          <ScenePreviewMap scene={scene} activeLayer={activeLayer} runResult={runResult} />
         </main>
       </div>
     </div>
