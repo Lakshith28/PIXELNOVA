@@ -12,53 +12,19 @@ from rasterio.transform import Affine
 from PIL import Image
 
 
-def compute_stretch_bounds(
-    bands_01: np.ndarray, low: float = 2.0, high: float = 98.0
-) -> list[tuple[float, float]]:
-    """
-    Computes per-channel (R, G, B) percentile stretch bounds from a
-    (n_bands, H, W) array in band order (B02, B03, B04, B08). Call this
-    ONCE on the original scene, then pass the result to both the
-    "original" and "enhanced" renders so they share identical color
-    calibration — any visible difference between the two is then purely
-    resolution/sharpness, not an arbitrary contrast/brightness shift.
-    """
-    n_bands = bands_01.shape[0]
-    if n_bands >= 3:
-        r, g, b = bands_01[2], bands_01[1], bands_01[0]
-    else:
-        r = g = b = bands_01[0]
-    rgb = np.stack([r, g, b], axis=-1)
-
-    bounds = []
-    for band_idx in range(rgb.shape[-1]):
-        band = rgb[..., band_idx]
-        finite = band[np.isfinite(band)]
-        if finite.size == 0:
-            bounds.append((0.0, 1.0))
-            continue
-        lo, hi = np.percentile(finite, [low, high])
-        if hi <= lo:
-            hi = lo + 1e-6
-        bounds.append((float(lo), float(hi)))
-    return bounds
+from geospatial.color import apply_stretch, compute_stretch_bounds
 
 
-def render_true_color_png(
-    bands_01: np.ndarray,
-    dst_path: str,
-    stretch_bounds: list[tuple[float, float]] | None = None,
-) -> None:
+def render_true_color_png(bands_01: np.ndarray, dst_path: str, stretch_bounds=None) -> None:
     """
     bands_01: float32 array (n_bands, H, W) in 0-1 range, band order
     (B02, B03, B04, B08) i.e. index 0=Blue, 1=Green, 2=Red, 3=NIR.
     Writes a true-color (Red, Green, Blue) PNG.
 
-    stretch_bounds: optional per-channel (lo, hi) reflectance bounds from
-    compute_stretch_bounds(), typically computed on the ORIGINAL scene
-    and passed in here so the enhanced render uses the same color
-    calibration instead of recomputing its own stretch. If omitted,
-    bounds are computed from this array directly (original preview use).
+    stretch_bounds: optional [(lo,hi), (lo,hi), (lo,hi)] for R,G,B. Pass
+    the bounds computed from the ORIGINAL image here when rendering the
+    enhanced version, so both look color-consistent - the enhanced image
+    should look sharper, not differently-colored.
     """
     n_bands = bands_01.shape[0]
     if n_bands >= 3:
@@ -67,7 +33,8 @@ def render_true_color_png(
         r = g = b = bands_01[0]
 
     rgb = np.stack([r, g, b], axis=-1)
-    stretched = _percentile_stretch(rgb, bounds=stretch_bounds)
+    bounds = stretch_bounds if stretch_bounds is not None else compute_stretch_bounds(rgb)
+    stretched = apply_stretch(rgb, bounds)
     Image.fromarray(stretched, mode="RGB").save(dst_path, format="PNG")
 
 
@@ -130,24 +97,4 @@ def write_enhanced_geotiff(
         dst.write(data_u16)
 
 
-def _percentile_stretch(
-    rgb: np.ndarray,
-    low: float = 2.0,
-    high: float = 98.0,
-    bounds: list[tuple[float, float]] | None = None,
-) -> np.ndarray:
-    out = np.zeros_like(rgb, dtype=np.uint8)
-    for band_idx in range(rgb.shape[-1]):
-        band = rgb[..., band_idx]
-        if bounds is not None:
-            lo, hi = bounds[band_idx]
-        else:
-            finite = band[np.isfinite(band)]
-            if finite.size == 0:
-                continue
-            lo, hi = np.percentile(finite, [low, high])
-            if hi <= lo:
-                hi = lo + 1.0
-        stretched = np.clip((band - lo) / (hi - lo), 0, 1) * 255.0
-        out[..., band_idx] = stretched.astype(np.uint8)
-    return out
+

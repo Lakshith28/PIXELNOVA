@@ -7,19 +7,18 @@ import shutil
 import uuid
 from pathlib import Path
 
+import numpy as np
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
+from geospatial.color import compute_stretch_bounds
 from geospatial.preview import generate_preview_png
-from geospatial.render import (
-    compute_stretch_bounds,
-    render_confidence_png,
-    render_true_color_png,
-    write_enhanced_geotiff,
-)
+from geospatial.render import render_confidence_png, render_true_color_png, write_enhanced_geotiff
 from geospatial.validation import validate_geotiff
 from preprocessing.normalize import load_normalized_bands
-from super_resolution.baseline import METHOD_LABEL, enhance
+from super_resolution import trained_model
+from super_resolution.baseline import METHOD_LABEL as CLASSICAL_METHOD_LABEL
+from super_resolution.baseline import enhance as classical_enhance
 from uncertainty.heuristic import compute_confidence
 
 router = APIRouter()
@@ -106,23 +105,20 @@ async def get_scene_preview(scene_id: str):
         generate_preview_png(scene["file_path"], str(preview_path))
         scene["preview_generated"] = True
 
-    return FileResponse(
-        preview_path,
-        media_type="image/png",
-        headers={"Cache-Control": "no-store, must-revalidate"},
-    )
+    return FileResponse(preview_path, media_type="image/png")
 
 
 @router.post("/scenes/{scene_id}/run")
 async def run_ai_pipeline(scene_id: str):
     """
-    MVP-4/6/7: runs the current pipeline (classical baseline upsampling +
-    heuristic confidence), exports a real georeferenced enhanced GeoTIFF,
-    and renders PNGs for the frontend before/after and confidence views.
+    Runs the AI pipeline: preprocessing, super-resolution (trained CNN,
+    falling back to classical upsampling if the model is unavailable),
+    heuristic confidence, and exports a real georeferenced enhanced
+    GeoTIFF plus PNGs for the frontend.
 
-    HONEST LABELING: this is deliberately NOT called "AI super-resolution"
-    anywhere in the response. See super_resolution/baseline.py and
-    uncertainty/heuristic.py for why.
+    HONEST LABELING: method_label and the disclaimer field always
+    reflect what actually ran. See super_resolution/trained_model.py and
+    uncertainty/heuristic.py for the honesty notes on each.
     """
     scene = SCENES.get(scene_id)
     if not scene:
@@ -134,35 +130,62 @@ async def run_ai_pipeline(scene_id: str):
     loaded = load_normalized_bands(scene["file_path"])
     bands = loaded["bands"]
 
-    enhanced = enhance(bands, scale_factor=scale_factor)
+    # Memory safety: the free-tier server has 512MB total. Measured 800x800
+    # input peaking at ~580MB during tiled inference (over budget); a small
+    # demo AOI (~200x200) measured ~115MB (safe). Cap here rather than risk
+    # crashing the live server - MAX_PIXELS gives comfortable headroom.
+    MAX_PIXELS = 250_000  # e.g. ~500x500
+    input_pixels = bands.shape[1] * bands.shape[2]
+    if input_pixels > MAX_PIXELS:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"Scene is {bands.shape[2]}x{bands.shape[1]} px ({input_pixels:,} px), "
+                f"which exceeds the {MAX_PIXELS:,} px limit for AI processing on this "
+                "server. Please upload a smaller AOI crop (roughly 500x500 px or less)."
+            ),
+        )
+
+    # Compute the color stretch from the ORIGINAL image and reuse it for
+    # the enhanced render below, so "Enhanced" looks like a sharper version
+    # of "Original" - not a differently-colored image. See geospatial/color.py.
+    original_rgb_stack = np.stack([bands[2], bands[1], bands[0]], axis=0) if bands.shape[0] >= 3 else None
+    shared_stretch_bounds = compute_stretch_bounds(original_rgb_stack) if original_rgb_stack is not None else None
+
+    # Try the trained model first; fall back to classical upsampling if the
+    # model can't be loaded or fails for any reason. Either way, the API
+    # response's method_label and disclaimer reflect what ACTUALLY ran.
+    try:
+        enhanced = trained_model.enhance_trained(bands, scale_factor=scale_factor)
+        method_label = trained_model.METHOD_LABEL
+        method_disclaimer = trained_model.METHOD_DISCLAIMER
+    except Exception as exc:  # noqa: BLE001 - deliberate fallback path
+        print(f"[run_ai_pipeline] Trained model failed ({exc}); using classical baseline.")
+        enhanced = classical_enhance(bands, scale_factor=scale_factor)
+        method_label = CLASSICAL_METHOD_LABEL
+        method_disclaimer = (
+            "The trained model was unavailable, so this used classical "
+            "Lanczos upsampling instead - not a trained AI super-resolution "
+            "model. Confidence is a heuristic proxy based on local variance "
+            "in the original image, not calibrated model uncertainty."
+        )
+
     confidence_result = compute_confidence(
         bands, enhanced.shape[1:], loaded.get("nodata_mask")
     )
 
-    # Compute color stretch bounds ONCE from the original scene, then
-    # reuse them for both the original and enhanced renders. This
-    # guarantees the "Original" and "Enhanced" tabs share identical
-    # color calibration — any visible difference is purely
-    # resolution/sharpness, not an independently-computed contrast shift.
-    stretch_bounds = compute_stretch_bounds(bands)
-
-    original_png_path = PROCESSED_DIR / f"{scene_id}_preview.png"
     enhanced_png_path = PROCESSED_DIR / f"{scene_id}_enhanced.png"
     confidence_png_path = PROCESSED_DIR / f"{scene_id}_confidence.png"
     enhanced_tif_path = PROCESSED_DIR / f"{scene_id}_enhanced.tif"
 
-    # Re-render the "Original" tab's preview using the same bounds, so
-    # it matches the enhanced tab's calibration exactly (this replaces
-    # the upload-time preview, which used its own independent stretch).
-    render_true_color_png(bands, str(original_png_path), stretch_bounds=stretch_bounds)
-    render_true_color_png(enhanced, str(enhanced_png_path), stretch_bounds=stretch_bounds)
+    render_true_color_png(enhanced, str(enhanced_png_path), stretch_bounds=shared_stretch_bounds)
     render_confidence_png(confidence_result["confidence_map"], str(confidence_png_path))
     write_enhanced_geotiff(
         enhanced, loaded["transform"], loaded["crs"], str(enhanced_tif_path), scale_factor
     )
 
     run_result = {
-        "method_label": METHOD_LABEL,
+        "method_label": method_label,
         "confidence_method": confidence_result["method"],
         "mean_confidence": round(confidence_result["mean_confidence"], 3),
         "high_confidence_pct": confidence_result["high_confidence_pct"],
@@ -175,13 +198,7 @@ async def run_ai_pipeline(scene_id: str):
         "scale_factor": scale_factor,
         "input_resolution_m": round(loaded["pixel_resolution_m"], 2),
         "output_resolution_m": round(loaded["pixel_resolution_m"] / scale_factor, 2),
-        "disclaimer": (
-            "This uses classical Lanczos upsampling as a placeholder, not a "
-            "trained AI super-resolution model. Confidence is a heuristic "
-            "proxy based on local variance in the original image, not "
-            "calibrated model uncertainty. Both will be replaced with real "
-            "trained components in a later phase."
-        ),
+        "disclaimer": method_disclaimer,
     }
     scene["run_result"] = run_result
     return run_result
@@ -195,9 +212,7 @@ async def get_enhanced_preview(scene_id: str):
     path = PROCESSED_DIR / f"{scene_id}_enhanced.png"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Enhanced preview not found.")
-    return FileResponse(
-        path, media_type="image/png", headers={"Cache-Control": "no-store, must-revalidate"}
-    )
+    return FileResponse(path, media_type="image/png")
 
 
 @router.get("/scenes/{scene_id}/confidence-preview")
@@ -208,9 +223,7 @@ async def get_confidence_preview(scene_id: str):
     path = PROCESSED_DIR / f"{scene_id}_confidence.png"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Confidence preview not found.")
-    return FileResponse(
-        path, media_type="image/png", headers={"Cache-Control": "no-store, must-revalidate"}
-    )
+    return FileResponse(path, media_type="image/png")
 
 
 @router.get("/scenes/{scene_id}/enhanced-geotiff")

@@ -67,14 +67,24 @@ export default function PipelineTracker({ scene, runResult, onRunResult }) {
       <div className={`stage ${stage3Done ? 'stage-done' : 'stage-pending'}`}>
         <div className="stage-header">
           <span className="stage-label">03 Super-Resolution</span>
-          <span className="stage-badge">{stage3Done ? 'Classical baseline' : 'Waiting'}</span>
+          <span className="stage-badge">
+            {stage3Done
+              ? runResult.method_label === 'trained_cnn_espcn_onnx'
+                ? 'Trained CNN'
+                : 'Classical baseline'
+              : 'Waiting'}
+          </span>
         </div>
         {stage3Done && (
           <ul className="stage-checklist">
             <li className="check-done">
               ✓ {runResult.input_resolution_m} m → {runResult.output_resolution_m} m ({runResult.scale_factor}×)
             </li>
-            <li className="check-pending">· Not a trained AI model yet — classical upsampling only</li>
+            {runResult.method_label === 'trained_cnn_espcn_onnx' ? (
+              <li className="check-done">✓ Small trained CNN (ESPCN), not a research-grade model</li>
+            ) : (
+              <li className="check-pending">· Trained model unavailable — used classical upsampling</li>
+            )}
           </ul>
         )}
       </div>

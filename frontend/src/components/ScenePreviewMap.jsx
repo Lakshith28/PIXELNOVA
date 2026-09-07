@@ -10,7 +10,7 @@ function FitToBounds({ bounds }) {
   return null
 }
 
-export default function ScenePreviewMap({ scene, activeLayer = 'original', runResult = null }) {
+export default function ScenePreviewMap({ scene, activeLayer = 'original' }) {
   if (!scene || !scene.accepted) {
     return (
       <div className="map-placeholder">
@@ -29,12 +29,7 @@ export default function ScenePreviewMap({ scene, activeLayer = 'original', runRe
     [wgs84.north, wgs84.east],
   ]
 
-  // Cache-bust the "original" preview with a version tied to whether a run
-  // has completed: /run regenerates that same file server-side with color
-  // calibration matched to the enhanced output, so once a run finishes the
-  // browser must re-fetch it rather than reuse the pre-run cached image.
-  const previewVersion = runResult ? 'ran' : 'initial'
-  let overlayUrl = scenePreviewUrl(scene.scene_id, previewVersion)
+  let overlayUrl = scenePreviewUrl(scene.scene_id)
   if (activeLayer === 'enhanced') overlayUrl = enhancedPreviewUrl(scene.scene_id)
   if (activeLayer === 'confidence') overlayUrl = confidencePreviewUrl(scene.scene_id)
 
