@@ -5,43 +5,50 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 export async function uploadScene(file) {
   const formData = new FormData()
   formData.append('file', file)
-
-  const res = await fetch(`${API_BASE}/scenes/upload`, {
-    method: 'POST',
-    body: formData,
-  })
-
+  const res = await fetch(`${API_BASE}/scenes/upload`, { method: 'POST', body: formData })
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}))
     throw new Error(detail.detail || `Upload failed with status ${res.status}`)
   }
-
   return res.json()
 }
 
-export function scenePreviewUrl(sceneId) {
-  return `${API_BASE}/scenes/${sceneId}/preview`
-}
+export function scenePreviewUrl(sceneId) { return `${API_BASE}/scenes/${sceneId}/preview` }
 
 export async function runAiPipeline(sceneId) {
   const res = await fetch(`${API_BASE}/scenes/${sceneId}/run`, { method: 'POST' })
-
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}))
     throw new Error(detail.detail || `Processing failed with status ${res.status}`)
   }
-
   return res.json()
 }
 
-export function enhancedPreviewUrl(sceneId) {
-  return `${API_BASE}/scenes/${sceneId}/enhanced-preview`
+export function enhancedPreviewUrl(sceneId) { return `${API_BASE}/scenes/${sceneId}/enhanced-preview` }
+export function confidencePreviewUrl(sceneId) { return `${API_BASE}/scenes/${sceneId}/confidence-preview` }
+export function enhancedGeotiffUrl(sceneId) { return `${API_BASE}/scenes/${sceneId}/enhanced-geotiff` }
+
+export async function runFeatureExtraction(sceneId) {
+  const res = await fetch(`${API_BASE}/scenes/${sceneId}/features`, { method: 'POST' })
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}))
+    throw new Error(detail.detail || `Feature extraction failed with status ${res.status}`)
+  }
+  return res.json()
 }
 
-export function confidencePreviewUrl(sceneId) {
-  return `${API_BASE}/scenes/${sceneId}/confidence-preview`
+export function featuresPreviewUrl(sceneId) { return `${API_BASE}/scenes/${sceneId}/features-preview` }
+
+export async function runChangeDetection(beforeSceneId, afterSceneId) {
+  const params = new URLSearchParams({ before_scene_id: beforeSceneId, after_scene_id: afterSceneId })
+  const res = await fetch(`${API_BASE}/change-detection?${params.toString()}`, { method: 'POST' })
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}))
+    throw new Error(detail.detail || `Change detection failed with status ${res.status}`)
+  }
+  return res.json()
 }
 
-export function enhancedGeotiffUrl(sceneId) {
-  return `${API_BASE}/scenes/${sceneId}/enhanced-geotiff`
+export function changePreviewUrl(beforeSceneId, afterSceneId) {
+  return `${API_BASE}/change-detection/${beforeSceneId}/${afterSceneId}/preview`
 }

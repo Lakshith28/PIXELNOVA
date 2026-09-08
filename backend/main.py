@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import router as scenes_router
+from api.feature_routes import router as feature_router
 
 app = FastAPI(
     title="PIXELNOVA API",
@@ -19,8 +20,6 @@ app = FastAPI(
     version="0.1.0-phase1",
 )
 
-# Local dev origins always allowed. In production, set FRONTEND_URL to the
-# deployed static site's URL (Render sets this via env var, see render.yaml).
 default_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
 frontend_url = os.environ.get("FRONTEND_URL")
 allow_origins = default_origins + ([frontend_url] if frontend_url else [])
@@ -33,6 +32,7 @@ app.add_middleware(
 )
 
 app.include_router(scenes_router, prefix="/api", tags=["scenes"])
+app.include_router(feature_router, prefix="/api", tags=["features"])
 
 
 @app.get("/api/health")
