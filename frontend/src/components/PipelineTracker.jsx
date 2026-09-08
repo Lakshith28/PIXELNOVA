@@ -69,9 +69,9 @@ export default function PipelineTracker({ scene, runResult, onRunResult }) {
           <span className="stage-label">03 Super-Resolution</span>
           <span className="stage-badge">
             {stage3Done
-              ? runResult.method_label === 'classical_baseline_lanczos'
-                ? 'Classical baseline'
-                : 'AI (ESRGAN)'
+              ? runResult.method_label === 'trained_cnn_espcn_onnx'
+                ? 'Trained CNN'
+                : 'Classical baseline'
               : 'Waiting'}
           </span>
         </div>
@@ -80,10 +80,10 @@ export default function PipelineTracker({ scene, runResult, onRunResult }) {
             <li className="check-done">
               ✓ {runResult.input_resolution_m} m → {runResult.output_resolution_m} m ({runResult.scale_factor}×)
             </li>
-            {runResult.method_label !== 'classical_baseline_lanczos' ? (
-              <li className="check-done">✓ Pretrained ESRGAN (wsx4) — may invent detail in urban areas, see note below</li>
+            {runResult.method_label === 'trained_cnn_espcn_onnx' ? (
+              <li className="check-done">✓ Small trained CNN (ESPCN), not a research-grade model</li>
             ) : (
-              <li className="check-pending">· AI model unavailable — used classical upsampling instead</li>
+              <li className="check-pending">· Trained model unavailable — used classical upsampling</li>
             )}
           </ul>
         )}

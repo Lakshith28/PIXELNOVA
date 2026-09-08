@@ -10,7 +10,7 @@ function FitToBounds({ bounds }) {
   return null
 }
 
-export default function ScenePreviewMap({ scene, activeLayer = 'original', runResult = null }) {
+export default function ScenePreviewMap({ scene, activeLayer = 'original' }) {
   if (!scene || !scene.accepted) {
     return (
       <div className="map-placeholder">
@@ -29,8 +29,7 @@ export default function ScenePreviewMap({ scene, activeLayer = 'original', runRe
     [wgs84.north, wgs84.east],
   ]
 
-  const previewVersion = runResult ? 'ran' : 'initial'
-  let overlayUrl = scenePreviewUrl(scene.scene_id, previewVersion)
+  let overlayUrl = scenePreviewUrl(scene.scene_id)
   if (activeLayer === 'enhanced') overlayUrl = enhancedPreviewUrl(scene.scene_id)
   if (activeLayer === 'confidence') overlayUrl = confidencePreviewUrl(scene.scene_id)
 

@@ -25,23 +25,39 @@ import torch.nn.functional as F
 
 
 class ESPCN(nn.Module):
+    """
+    Residual formulation: the network predicts a CORRECTION on top of a
+    plain bicubic upsample, rather than reconstructing the whole image
+    from scratch. This is a standard, well-established trick for small
+    SR models - it dramatically improves quality/stability with limited
+    training data, and specifically reduces checkerboard artifacts from
+    the pixel-shuffle layer, since the network only needs to learn fine
+    detail rather than full image reconstruction.
+    """
     def __init__(self, n_bands: int = 4, scale_factor: int = 4):
         super().__init__()
         self.scale_factor = scale_factor
         self.body = nn.Sequential(
             nn.Conv2d(n_bands, 64, kernel_size=5, padding=2),
             nn.ReLU(inplace=True),
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
             nn.Conv2d(64, 32, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
         )
         self.upsample = nn.Conv2d(32, n_bands * (scale_factor ** 2), kernel_size=3, padding=1)
         self.pixel_shuffle = nn.PixelShuffle(scale_factor)
+        # zero-init the last layer so the model starts as a no-op correction
+        # (pure bicubic) and learns to deviate from there - much more stable
+        nn.init.zeros_(self.upsample.weight)
+        nn.init.zeros_(self.upsample.bias)
 
     def forward(self, x):
-        x = self.body(x)
-        x = self.upsample(x)
-        x = self.pixel_shuffle(x)
-        return torch.sigmoid(x)
+        bicubic = F.interpolate(x, scale_factor=self.scale_factor, mode="bicubic", align_corners=False)
+        correction = self.body(x)
+        correction = self.upsample(correction)
+        correction = self.pixel_shuffle(correction)
+        return torch.clamp(bicubic + correction, 0, 1)
 
 
 def load_training_bands(path: str) -> np.ndarray:
@@ -86,23 +102,41 @@ def make_patch_pairs(bands: np.ndarray, patch_size: int, scale: int, n_patches: 
     return pairs
 
 
+def gradient_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    """
+    Penalizes missing edges/sharpness, not just raw pixel error. Plain
+    MSE alone is well known to produce blurry super-resolution results
+    since it rewards "safe" smooth averages; adding a gradient term
+    pushes the model to actually reproduce edges.
+    """
+    def grad(x):
+        dx = x[:, :, :, 1:] - x[:, :, :, :-1]
+        dy = x[:, :, 1:, :] - x[:, :, :-1, :]
+        return dx, dy
+
+    pred_dx, pred_dy = grad(pred)
+    target_dx, target_dy = grad(target)
+    return F.l1_loss(pred_dx, target_dx) + F.l1_loss(pred_dy, target_dy)
+
+
 def train():
     print("Loading real Sentinel-2 data for training...")
     bands = load_training_bands("../data/input/real_sentinel2_stacked.tif")
     print("bands shape:", bands.shape)
 
     scale = 4
-    patch_size = 40  # HR patch size; LR input will be patch_size/scale
+    patch_size = 64
     n_bands = bands.shape[0]
 
     model = ESPCN(n_bands=n_bands, scale_factor=scale)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=3000)
 
     rng = np.random.default_rng(42)
     _, h, w = bands.shape
 
-    n_steps = 400
-    batch_size = 8
+    n_steps = 3000
+    batch_size = 12
     losses = []
 
     for step in range(n_steps):
@@ -110,7 +144,6 @@ def train():
         for _ in range(batch_size):
             if h <= patch_size or w <= patch_size:
                 hr = bands
-                # pad if scene smaller than patch
                 pad_h = max(0, patch_size - hr.shape[1])
                 pad_w = max(0, patch_size - hr.shape[2])
                 if pad_h or pad_w:
@@ -135,15 +168,18 @@ def train():
         lr_t = torch.clamp(lr_t, 0, 1)
 
         pred = model(lr_t)
-        loss = F.mse_loss(pred, hr_t)
+        mse = F.mse_loss(pred, hr_t)
+        grad_l = gradient_loss(pred, hr_t)
+        loss = mse + 0.5 * grad_l
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        scheduler.step()
 
         losses.append(loss.item())
-        if step % 50 == 0 or step == n_steps - 1:
-            print(f"step {step}: loss={loss.item():.5f}")
+        if step % 300 == 0 or step == n_steps - 1:
+            print(f"step {step}: loss={loss.item():.5f} (mse={mse.item():.5f}, grad={grad_l.item():.5f})")
 
     print("Final loss:", losses[-1])
     print("Loss reduction:", losses[0], "->", losses[-1])
